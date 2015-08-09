@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include "test_vectors_0.h"
+#include "test_vectors_1600.h"
 
 // Bogus stuff NSPR
 typedef int PRBool; // totes bogus
@@ -11,7 +11,7 @@ typedef int PRBool; // totes bogus
 #define PR_FALSE 0
 #define PR_TRUE 1
 
-#define DEBUG 0
+#define DEBUG 1
 #define MAX_TODO 144
 
 // All of the SHA3 functions use a common context struct
@@ -199,20 +199,17 @@ uint64_t RC[24] = {
 int rnd(SHA3Context* ctx, int ir) {
   int x,y;
   SHA3Context tmp;
-  printf("=== Round %d ===\n\n", ir);
 
   // theta
   uint64_t C[5];
   for (x = 0; x < 5; ++x) {
     C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
   }
-
   for (x = 0; x < 5; ++x) {
     for (y = 0; y < 5; ++y) {
       ctx->A[y][x] ^= C[mod5(x-1)] ^ rotl(C[mod5(x+1)], 1);
     }
   }
-  if (!statecmp(ctx->A, test_vectors_0[ir][0], ir, 0)) return 0;
 
   // rho
   for (x = 0; x < 5; ++x) {
@@ -220,7 +217,6 @@ int rnd(SHA3Context* ctx, int ir) {
       ctx->A[y][x] = rotl(ctx->A[y][x], rho_offsets[y][x]);
     }
   }
-  if (!statecmp(ctx->A, test_vectors_0[ir][1], ir, 1)) return 0;
 
   // pi
   for (x = 0; x < 5; ++x) {
@@ -233,7 +229,6 @@ int rnd(SHA3Context* ctx, int ir) {
       ctx->A[y][x] = tmp.A[y][x];
     }
   }
-  if (!statecmp(ctx->A, test_vectors_0[ir][2], ir, 2)) return 0;
 
   // chi
   for (x = 0; x < 5; ++x) {
@@ -241,17 +236,14 @@ int rnd(SHA3Context* ctx, int ir) {
       tmp.A[y][x] = (ctx->A[y][mod5(x+1)] ^ ONE) & ctx->A[y][mod5(x+2)];
     }
   }
-
   for (x = 0; x < 5; ++x) {
     for (y = 0; y < 5; ++y) {
       ctx->A[y][x] ^= tmp.A[y][x];
     }
   }
-  if (!statecmp(ctx->A, test_vectors_0[ir][3], ir, 3)) return 0;
 
   // iota
   ctx->A[0][0] ^= RC[ir];
-  if (!statecmp(ctx->A, test_vectors_0[ir][4], ir, 4)) return 0;
 
   return 1;
 }
@@ -259,18 +251,12 @@ int rnd(SHA3Context* ctx, int ir) {
 // This lets us just memcpy / xor to byte arrays
 void
 swap_endian(SHA3Context *ctx) {
-  printf("~~~ BEFORE ENDIAN SWAP ~~~\n");
-  dump(ctx->A, 1);
-
   for (int x=0; x<5; ++x) {
     for (int y=0; y<5; ++y) {
       // TODO Just do this in-place?
       ctx->A[y][x] = swap_endian_lane(ctx->A[y][x]);
     }
   }
-
-  printf("~~~ AFTER ENDIAN SWAP ~~~\n");
-  dump(ctx->A, 1);
 }
 
 // These can be changed to noops with an #ifdef
@@ -303,12 +289,29 @@ copy_from_sponge(uint8_t *dst, SHA3Context *ctx, size_t length)
   FROM_LITTLE_ENDIAN(ctx);
 }
 
+int BLOCK = 0;
+
 // The input buffer is expected to have at least ctx->r bytes.
 void
 SHA3_AddBlock(SHA3Context *ctx, const unsigned char *input)
 {
   // XOR and apply permutation
+
+  printf("=== BLOCK %d ===\n", BLOCK);
+  if (BLOCK < 2) {
+    statecmp(ctx->A, test_vectors_1600[BLOCK][0], BLOCK, 0); // State (in bytes)
+    statecmp((uint64_t*) input, test_vectors_1600[BLOCK][1], BLOCK, 1); // Data to be absorbed
+  } else {
+    printf("WTF?\n");
+  }
   add_to_sponge(ctx, input);
+  if (BLOCK < 2) {
+    statecmp(ctx->A, test_vectors_1600[BLOCK][2], BLOCK, 2); // Xor'd state
+  } else {
+    printf("WTF?\n");
+  }
+  BLOCK += 1;
+
   for (int ir=0; ir<24; ++ir) {
     rnd(ctx, ir);
   }
@@ -337,7 +340,9 @@ SHA3_Update(SHA3Context *ctx, const unsigned char *input,
   }
 
   // Finally, copy trailing input to ctx->todo
-  memcpy(ctx->todo, input + used, inputLen - used);
+  ctx->todoLength = inputLen - used;
+  memset(ctx->todo, 0, MAX_TODO);
+  memcpy(ctx->todo, input + used, ctx->todoLength);
 }
 
 void
@@ -370,12 +375,37 @@ SHA3_End(SHA3Context *ctx, unsigned char *digest,
 // Vary this to choose among the SHA3-* variants
 #define DIGEST_LEN 256 / 8
 
+#define MESSAGE_LEN 200
+const uint8_t message[MESSAGE_LEN] = {
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+ 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3, 0xA3,
+};
+
 int main() {
   unsigned int digestLen;
   uint8_t *digest = malloc(DIGEST_LEN);
 
   SHA3Context *ctx = SHA3_NewContext();
   SHA3_Begin(ctx, DIGEST_LEN, 2, 2);
+  SHA3_Update(ctx, message, MESSAGE_LEN);
   SHA3_End(ctx, digest, &digestLen, DIGEST_LEN);
 
   printf("digest len = %d\n", digestLen);
@@ -401,4 +431,11 @@ int main() {
 // SHA3-512   tv    A69F73CCA23A9AC5C8B567DC185A756E97C982164FE25859E0D1DCC1475C80A615B2123AF1F5F94C11E3E9402C3AC558F500199D95B6D3E301758586281DCD26
 //            me    A69F73CCA23A9AC5C8B567DC185A756E97C982164FE25859E0D1DCC1475C80A615B2123AF1F5F94C11E3E9402C3AC558F500199D95B6D3E301758586281DCD26
 
-
+// Test vectors for 200*0xA3 input
+// SHA3-224   tv    9376816ABA503F72F96CE7EB65AC095DEEE3BE4BF9BBC2A1CB7E11E0
+//            me
+// SHA3-256   tv    79F38ADEC5C20307A98EF76E8324AFBFD46CFD81B22E3973C65FA1BD9DE31787
+//            me    79F38ADEC5C20307A98EF76E8324AFBFD46CFD81B22E3973C65FA1BD9DE31787
+// SHA3-384   tv    1881DE2CA7E41EF95DC4732B8F5F002B189CC1E42B74168ED1732649CE1DBCDD76197A31FD55EE989F2D7050DD473E8F
+//            me
+// SHA3-512   tv    E76DFAD22084A8B1467FCF2FFA58361BEC7628EDF5F3FDC0E4805DC48CAEECA81B7C13C30ADF52A3659584739A2DF46BE589C51CA1A4A8416DF6545A1CE8BA00

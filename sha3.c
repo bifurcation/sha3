@@ -159,18 +159,12 @@ int rnd(SHA3Context* ctx, int ir) {
     ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
   }
 
-  // rho
+  // rho + pi
   for (x = 0; x < 5; ++x) {
     ctx->D[x] = ctx->C[mod5(x-1)] ^ rotl(ctx->C[mod5(x+1)], 1);
 
     for (y = 0; y < 5; ++y) {
       ctx->A[y][x] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
-    }
-  }
-
-  // pi
-  for (x = 0; x < 5; ++x) {
-    for (y = 0; y < 5; ++y) {
       ctx->B[y][x] = ctx->A[x][pi_x[x][y]];
     }
   }

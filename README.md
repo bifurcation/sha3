@@ -14,6 +14,13 @@ involve looking at the optimizations applied by the Keccak authors in their
 optimized implementation, and perhaps taking some techniques from the NSS SHA-2
 implementation.
 
+## Quickstart
+
+```
+gcc sha3.c correctness_test.c && ./a.out
+gcc sha3.c sha512.o speed_test.c && ./a.out
+```
+
 ## Credits
 
 The measurement bits in `speed_test.c` are taken from the measurement code

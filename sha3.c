@@ -102,7 +102,6 @@ swap_endian(SHA3Context *ctx) {
 // Parentheses are abundant here, but necessary in order to get
 // the expected operator precedence while saving the function
 // call overhead
-#define mod5(x) ((x) >= 0)? ((x)%5) : 5 - (-1*(x) % 5)
 #define rotl(x, n)  (((x) << n) | ((x) >> (64 - n)))
 
 static const size_t rho_offsets[5][5] = {
@@ -151,6 +150,10 @@ uint64_t RC[24] = {
   0x8000000080008008
 };
 
+const int mod5m1[5] = {4, 0, 1, 2, 3}; // (x-1) mod 5
+const int mod5p1[5] = {1, 2, 3, 4, 0}; // (x+1) mod 5
+const int mod5p2[5] = {2, 3, 4, 0, 1}; // (x+2) mod 5
+
 int rnd(SHA3Context* ctx, int ir) {
   int x,y;
 
@@ -161,7 +164,7 @@ int rnd(SHA3Context* ctx, int ir) {
 
   // theta/2 rho + pi/2
   for (x = 0; x < 5; ++x) {
-    ctx->D[x] = ctx->C[mod5(x-1)] ^ rotl(ctx->C[mod5(x+1)], 1);
+    ctx->D[x] = ctx->C[mod5m1[x]] ^ rotl(ctx->C[mod5p1[x]], 1);
 
     for (y = 0; y < 5; ++y) {
       ctx->B[y][x] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
@@ -172,8 +175,8 @@ int rnd(SHA3Context* ctx, int ir) {
   for (x = 0; x < 5; ++x) {
     for (y = 0; y < 5; ++y) {
       ctx->A[y][x] = ctx->B[x][pi_x[x][y]] ^
-                     (ctx->B[mod5(x+1)][pi_x[mod5(x+1)][y]] ^ ONE) &
-                     ctx->B[mod5(x+2)][pi_x[mod5(x+2)][y]];
+                     (ctx->B[mod5p1[x]][pi_x[mod5p1[x]][y]] ^ ONE) &
+                     ctx->B[mod5p2[x]][pi_x[mod5p2[x]][y]];
     }
   }
 

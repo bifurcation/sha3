@@ -96,16 +96,18 @@ static __inline__ uint64_t swap8b(uint64_t value)
   t1 = ((t1 & SHA_MASK16) << 16) | ((t1 >> 16) & SHA_MASK16), \
   (t1 >> 32) | (t1 << 32))
 #endif
-#define BYTESWAP8(x)  x = SHA_HTONLL(x)
+#define BYTESWAP8(x) x = SHA_HTONLL(x)
+
+#define CTX_A(x, y) ctx->A[y * 5 + x]
+#define CTX_B(x, y) ctx->B[y * 5 + x]
+#define CTX_C(x) ctx->C[x]
+#define CTX_D(x) ctx->D[x]
 
 // This lets us just memcpy / xor to byte arrays
 void
 swap_endian(SHA3Context *ctx) {
-  for (int x=0; x<5; ++x) {
-    for (int y=0; y<5; ++y) {
-      // TODO Just do this in-place?
-      ctx->A[y][x] = BYTESWAP8(ctx->A[y][x]);
-    }
+  for (int i=0; i<25; ++i) {
+    BYTESWAP8(ctx->A[i]);
   }
 }
 
@@ -118,10 +120,6 @@ swap_endian(SHA3Context *ctx) {
 #define TO_LITTLE_ENDIAN(ctx)
 #define FROM_LITTLE_ENDIAN(ctx)
 #endif
-
-// Parentheses are abundant here, but necessary in order to get
-// the expected operator precedence while saving the function
-// call overhead
 
 #define rho_offsets(y,x) rho_offsets_ ## y ## _ ## x
 #define rho_offsets_0_0 0
@@ -230,16 +228,16 @@ uint64_t RC[24] = {
 
 // Macros to make loop unrolling prettier
 #define COL_SUM(x) \
-  ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
+  CTX_C(x) = CTX_A(x, 0) ^ CTX_A(x, 1) ^ CTX_A(x, 2) ^ CTX_A(x, 3) ^ CTX_A(x, 4);
 #define TRP_COL(x) \
-  ctx->D[x] = ctx->C[mod5m1(x)] ^ ROTL64(ctx->C[mod5p1(x)], 1); \
+  CTX_D(x) = CTX_C(mod5m1(x)) ^ ROTL64(CTX_C(mod5p1(x)), 1);    \
   TRP_ROW(0, x) \
   TRP_ROW(1, x) \
   TRP_ROW(2, x) \
   TRP_ROW(3, x) \
   TRP_ROW(4, x)
 #define TRP_ROW(y, x) \
-  ctx->B[pi_inv(y,x)][y] = ROTL64(ctx->A[y][x] ^ ctx->D[x], rho_offsets(y, x));
+  CTX_B(y, pi_inv(y,x)) = ROTL64(CTX_A(x, y) ^ CTX_D(x), rho_offsets(y, x));
 #define CHI_ROW(y) \
   CHI_COL(y, 0) \
   CHI_COL(y, 1) \
@@ -247,7 +245,7 @@ uint64_t RC[24] = {
   CHI_COL(y, 3) \
   CHI_COL(y, 4)
 #define CHI_COL(y, x) \
-  ctx->A[y][x] = ctx->B[y][x] ^ (ctx->B[y][mod5p1(x)] ^ ONE) & ctx->B[y][mod5p2_ ## x];
+  CTX_A(x, y) = CTX_B(x, y) ^ (CTX_B(mod5p1(x), y) ^ ONE) & CTX_B(mod5p2(x), y);
 #define ROUND(ctx, ir) \
   /* theta/2 */ \
   COL_SUM(0); \
@@ -268,7 +266,7 @@ uint64_t RC[24] = {
   CHI_ROW(3); \
   CHI_ROW(4); \
   /* iota */ \
-  ctx->A[0][0] ^= RC[ir];
+  CTX_A(0, 0) ^= RC[ir];
 
 // The input buffer is expected to have at least ctx->r bytes.
 void

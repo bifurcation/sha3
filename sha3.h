@@ -48,10 +48,10 @@ typedef struct SHA3ContextStr {
   uint8_t todoLength;
 
   /* Sponge state */
-  uint64_t A[5][5];
+  uint64_t A[25];
 
   /* Temporary storage for in-place [chi] */
-  uint64_t B[5][5];
+  uint64_t B[25];
 
   /* Temporary column sums [theta] */
   uint64_t C[5];

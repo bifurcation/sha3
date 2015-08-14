@@ -19,36 +19,7 @@
 //#include "secport.h"	/* for PORT_XXX */
 //#include "blapi.h"
 //XXX
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#define PRUint8 uint8_t
-#define PRUint32 uint32_t
-#define SHA256_LENGTH 32
-#define SHA512_LENGTH 64
-#define SECStatus int
-#define SECSuccess 0
-#define PRUint64 uint64_t
-#define PRBool int
-#define PR_BYTES_PER_LONG 8
-#define HAVE_LONG_LONG
-#define SHA256_BLOCK_LENGTH 64
-#define SHA512_BLOCK_LENGTH 128
-#define PORT_New(x) malloc(sizeof(x))
-#define PORT_Free(x) free(x)
-#define PORT_Memcpy(dst, src, n) memcpy(dst, src, n)
-#define PORT_Strlen(str) strlen(str)
-#define LL_SHL(r, a, b)     ((r) = (uint64_t)(a) << (b))
-#define PR_MIN(x, y)  ((x < y)? x : y)
-
-typedef struct SHA256ContextStr {
-    union {
-	PRUint32 w[64];	    /* message schedule, input buffer, plus 48 words */
-	PRUint8  b[256];
-    } u;
-    PRUint32 h[8];		/* 8 state variables */
-    PRUint32 sizeHi,sizeLo;	/* 64-bit count of hashed bytes. */
-} SHA256Context;
+#include "sha2.h"
 
 /* ============= Common constants and defines ======================= */
 
@@ -70,6 +41,15 @@ static const PRUint8 pad[240] = {
 };
 
 /* ============= SHA256 implementation ================================== */
+
+struct SHA256ContextStr {
+    union {
+        PRUint32 w[64];             /* message schedule, input buffer, plus 48 words */
+        PRUint8  b[256];
+    } u;
+    PRUint32 h[8];		/* 8 state variables */
+    PRUint32 sizeHi,sizeLo;	/* 64-bit count of hashed bytes. */
+};
 
 /* SHA-256 constants, K256. */
 static const PRUint32 K256[64] = {

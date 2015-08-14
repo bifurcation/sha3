@@ -1,4 +1,4 @@
-CFLAGS = -O3 -I../nspr/pr/include
+CFLAGS = -O3
 
 speed_test: speed_test.o sha3.o sha512.o
 	$(CC) -o speed_test $^
@@ -6,3 +6,6 @@ speed_test: speed_test.o sha3.o sha512.o
 .PHONY: test
 test: speed_test
 	./speed_test
+
+clean:
+	git clean -fX

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "sha3.h"
+#include "sha2.h"
 
 /*
 
@@ -73,6 +74,7 @@ uint32_t measureRandomBuffer_224(uint32_t dtMin, size_t size)
     }
 
     /* now tMin = # clocks required for running RoutineToBeTimed() */
+    SHA3_DestroyContext(ctx, 1);
     free(input);
     return tMin;
 }
@@ -100,6 +102,7 @@ uint32_t measureRandomBuffer_256(uint32_t dtMin, size_t size)
     }
 
     /* now tMin = # clocks required for running RoutineToBeTimed() */
+    SHA3_DestroyContext(ctx, 1);
     free(input);
     return tMin;
 }
@@ -127,6 +130,7 @@ uint32_t measureRandomBuffer_384(uint32_t dtMin, size_t size)
     }
 
     /* now tMin = # clocks required for running RoutineToBeTimed() */
+    SHA3_DestroyContext(ctx, 1);
     free(input);
     return tMin;
 }
@@ -154,6 +158,61 @@ uint32_t measureRandomBuffer_512(uint32_t dtMin, size_t size)
     }
 
     /* now tMin = # clocks required for running RoutineToBeTimed() */
+    SHA3_DestroyContext(ctx, 1);
+    free(input);
+    return tMin;
+}
+
+uint32_t measureRandomBuffer_SHA256(uint32_t dtMin, size_t size)
+{
+    uint32_t tMin = 0xFFFFFFFF;
+    uint32_t t0,t1,i;
+    unsigned char *input = randomBuffer(size);
+    SHA256Context *ctx = SHA256_NewContext();
+    unsigned char digest[64];
+    unsigned int digestLen;
+
+    for (i=0;i < TIMER_SAMPLE_CNT;i++) {
+        t0 = HiResTime();
+
+        SHA256_Begin(ctx);
+        SHA256_Update(ctx, input, size);
+        SHA256_End(ctx, digest, &digestLen, 64);
+
+        t1 = HiResTime();
+        if (tMin > t1-t0 - dtMin) {
+            tMin = t1-t0 - dtMin;
+        }
+    }
+
+    /* now tMin = # clocks required for running RoutineToBeTimed() */
+    free(input);
+    return tMin;
+}
+
+uint32_t measureRandomBuffer_SHA512(uint32_t dtMin, size_t size)
+{
+    uint32_t tMin = 0xFFFFFFFF;
+    uint32_t t0,t1,i;
+    unsigned char *input = randomBuffer(size);
+    SHA512Context *ctx = SHA512_NewContext();
+    unsigned char digest[64];
+    unsigned int digestLen;
+
+    for (i=0;i < TIMER_SAMPLE_CNT;i++) {
+        t0 = HiResTime();
+
+        SHA512_Begin(ctx);
+        SHA512_Update(ctx, input, size);
+        SHA512_End(ctx, digest, &digestLen, 64);
+
+        t1 = HiResTime();
+        if (tMin > t1-t0 - dtMin) {
+            tMin = t1-t0 - dtMin;
+        }
+    }
+
+    /* now tMin = # clocks required for running RoutineToBeTimed() */
     free(input);
     return tMin;
 }
@@ -170,6 +229,20 @@ int main()
   uint32_t measurement;
   const char *format = "%10d => %10.2f\n";
   const int testSizes[4] = {1, 100, 10000, 1000000};
+
+  printf("=== SHA-256 ===\n");
+  for (i=0; i<4; ++i) {
+    measurement = measureRandomBuffer_SHA256(calibration, testSizes[i]);
+    printf(format, testSizes[i], measurement * 1.0 / testSizes[i]);
+  }
+  printf("\n");
+
+  printf("=== SHA-512 ===\n");
+  for (i=0; i<4; ++i) {
+    measurement = measureRandomBuffer_SHA512(calibration, testSizes[i]);
+    printf(format, testSizes[i], measurement * 1.0 / testSizes[i]);
+  }
+  printf("\n");
 
   printf("=== SHA3-224 ===\n");
   for (i=0; i<4; ++i) {

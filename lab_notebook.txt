@@ -115,7 +115,7 @@ Calibration: 24
    1000000 =>     309.06
 
 
-### Speed test results with one more unnecessary loop:
+### Speed test results with one more unnecessary loop (NOT CORRECT):
 
 Calibration: 24
 
@@ -142,3 +142,33 @@ Calibration: 24
        100 =>     383.00
      10000 =>     243.04
    1000000 =>     245.80
+
+
+### Speed test results with inner loop as a macro:
+
+Calibration: 18
+
+=== SHA3-224 ===
+         1 =>   38765.00
+       100 =>     374.96
+     10000 =>     263.57
+   1000000 =>     262.41
+
+=== SHA3-256 ===
+         1 =>   41337.00
+       100 =>     412.01
+     10000 =>     261.68
+   1000000 =>     263.03
+
+=== SHA3-384 ===
+         1 =>   37575.00
+       100 =>     373.26
+     10000 =>     261.79
+   1000000 =>     264.59
+
+=== SHA3-512 ===
+         1 =>   41319.00
+       100 =>     412.04
+     10000 =>     262.39
+   1000000 =>     263.12
+

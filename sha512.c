@@ -40,9 +40,15 @@
 #define PORT_Strlen(str) strlen(str)
 #define LL_SHL(r, a, b)     ((r) = (uint64_t)(a) << (b))
 #define PR_MIN(x, y)  ((x < y)? x : y)
-typedef struct SHA256ContextStr SHA256Context;
 
-#include "sha256.h"	/* for struct SHA256ContextStr */
+typedef struct SHA256ContextStr {
+    union {
+	PRUint32 w[64];	    /* message schedule, input buffer, plus 48 words */
+	PRUint8  b[256];
+    } u;
+    PRUint32 h[8];		/* 8 state variables */
+    PRUint32 sizeHi,sizeLo;	/* 64-bit count of hashed bytes. */
+} SHA256Context;
 
 /* ============= Common constants and defines ======================= */
 

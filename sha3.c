@@ -150,41 +150,67 @@ uint64_t RC[24] = {
   0x8000000080008008
 };
 
-const int mod5m1[5] = {4, 0, 1, 2, 3}; // (x-1) mod 5
-const int mod5p1[5] = {1, 2, 3, 4, 0}; // (x+1) mod 5
-const int mod5p2[5] = {2, 3, 4, 0, 1}; // (x+2) mod 5
+// Do the mod operations in the preprocessor
+#define mod5m1(x) mod5m1_ ## x
+#define mod5m1_0 4
+#define mod5m1_1 0
+#define mod5m1_2 1
+#define mod5m1_3 2
+#define mod5m1_4 3
+#define mod5p1(x) mod5p1_ ## x
+#define mod5p1_0 1
+#define mod5p1_1 2
+#define mod5p1_2 3
+#define mod5p1_3 4
+#define mod5p1_4 0
+#define mod5p2(x) mod5p2_ ## x
+#define mod5p2_0 2
+#define mod5p2_1 3
+#define mod5p2_2 4
+#define mod5p2_3 0
+#define mod5p2_4 1
 
-int rnd(SHA3Context* ctx, int ir) {
-  int x,y;
-
-  // theta/2
-  for (x = 0; x < 5; ++x) {
-    ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
-  }
-
-  // theta/2 + rho
-  for (x = 0; x < 5; ++x) {
-    ctx->D[x] = ctx->C[mod5m1[x]] ^ rotl(ctx->C[mod5p1[x]], 1);
-
-    for (y = 0; y < 5; ++y) {
-      ctx->B[pi_inv[y][x]][y] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
-    }
-  }
-
-  // chi
-  for (x = 0; x < 5; ++x) {
-    for (y = 0; y < 5; ++y) {
-      ctx->A[y][x] = ctx->B[y][x] ^
-                     (ctx->B[y][mod5p1[x]] ^ ONE) &
-                     ctx->B[y][mod5p2[x]];
-    }
-  }
-
-  // iota
+// Macros to make loop unrolling prettier
+#define COL_SUM(x) \
+  ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
+#define TRP_COL(x) \
+  ctx->D[x] = ctx->C[mod5m1(x)] ^ rotl(ctx->C[mod5p1(x)], 1); \
+  TRP_ROW(0, x) \
+  TRP_ROW(1, x) \
+  TRP_ROW(2, x) \
+  TRP_ROW(3, x) \
+  TRP_ROW(4, x)
+#define TRP_ROW(y, x) \
+  ctx->B[pi_inv[y][x]][y] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
+#define CHI_ROW(y) \
+  CHI_COL(y, 0) \
+  CHI_COL(y, 1) \
+  CHI_COL(y, 2) \
+  CHI_COL(y, 3) \
+  CHI_COL(y, 4)
+#define CHI_COL(y, x) \
+  ctx->A[y][x] = ctx->B[y][x] ^ (ctx->B[y][mod5p1(x)] ^ ONE) & ctx->B[y][mod5p2_ ## x];
+#define rnd(ctx, ir) \
+  /* theta/2 */ \
+  COL_SUM(0); \
+  COL_SUM(1); \
+  COL_SUM(2); \
+  COL_SUM(3); \
+  COL_SUM(4); \
+  /* theta/2 + rho + pi */ \
+  TRP_COL(0); \
+  TRP_COL(1); \
+  TRP_COL(2); \
+  TRP_COL(3); \
+  TRP_COL(4); \
+  /* chi */ \
+  CHI_ROW(0); \
+  CHI_ROW(1); \
+  CHI_ROW(2); \
+  CHI_ROW(3); \
+  CHI_ROW(4); \
+  /* iota */ \
   ctx->A[0][0] ^= RC[ir];
-
-  return 1;
-}
 
 // The input buffer is expected to have at least ctx->r bytes.
 void

@@ -154,31 +154,26 @@ uint64_t RC[24] = {
 int rnd(SHA3Context* ctx, int ir) {
   int x,y;
 
-  // theta
+  // theta/2
   for (x = 0; x < 5; ++x) {
     ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
   }
 
-  // rho
+  // theta/2 rho + pi/2
   for (x = 0; x < 5; ++x) {
     ctx->D[x] = ctx->C[mod5(x-1)] ^ rotl(ctx->C[mod5(x+1)], 1);
 
     for (y = 0; y < 5; ++y) {
-      ctx->A[y][x] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
+      ctx->B[y][x] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
     }
   }
 
-  // pi
+  // pi/2 + chi
   for (x = 0; x < 5; ++x) {
     for (y = 0; y < 5; ++y) {
-      ctx->B[y][x] = ctx->A[x][pi_x[x][y]];
-    }
-  }
-
-  // chi
-  for (x = 0; x < 5; ++x) {
-    for (y = 0; y < 5; ++y) {
-      ctx->A[y][x] = ctx->B[y][x] ^ (ctx->B[y][mod5(x+1)] ^ ONE) & ctx->B[y][mod5(x+2)];
+      ctx->A[y][x] = ctx->B[x][pi_x[x][y]] ^
+                     (ctx->B[mod5(x+1)][pi_x[mod5(x+1)][y]] ^ ONE) &
+                     ctx->B[mod5(x+2)][pi_x[mod5(x+2)][y]];
     }
   }
 

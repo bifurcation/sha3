@@ -104,21 +104,60 @@ swap_endian(SHA3Context *ctx) {
 // call overhead
 #define rotl(x, n)  (((x) << n) | ((x) >> (64 - n)))
 
-static const size_t rho_offsets[5][5] = {
-  { 0,  1, 62, 28, 27},
-  {36, 44,  6, 55, 20},
-  { 3, 10, 43, 25, 39},
-  {41, 45, 15, 21,  8},
-  {18,  2, 61, 56, 14}
-};
+#define rho_offsets(y,x) rho_offsets_ ## y ## _ ## x
+#define rho_offsets_0_0 0
+#define rho_offsets_0_1 1
+#define rho_offsets_0_2 62
+#define rho_offsets_0_3 28
+#define rho_offsets_0_4 27
+#define rho_offsets_1_0 36
+#define rho_offsets_1_1 44
+#define rho_offsets_1_2 6
+#define rho_offsets_1_3 55
+#define rho_offsets_1_4 20
+#define rho_offsets_2_0 3
+#define rho_offsets_2_1 10
+#define rho_offsets_2_2 43
+#define rho_offsets_2_3 25
+#define rho_offsets_2_4 39
+#define rho_offsets_3_0 41
+#define rho_offsets_3_1 45
+#define rho_offsets_3_2 15
+#define rho_offsets_3_3 21
+#define rho_offsets_3_4 8
+#define rho_offsets_4_0 18
+#define rho_offsets_4_1 2
+#define rho_offsets_4_2 61
+#define rho_offsets_4_3 56
+#define rho_offsets_4_4 14
 
-static const int pi_inv[5][5] = {
-  {0, 2, 4, 1, 3},
-  {3, 0, 2, 4, 1},
-  {1, 3, 0, 2, 4},
-  {4, 1, 3, 0, 2},
-  {2, 4, 1, 3, 0}
-};
+#define pi_inv(y,x) pi_inv_ ## y ## _ ## x
+#define pi_inv_0_0 0
+#define pi_inv_0_1 2
+#define pi_inv_0_2 4
+#define pi_inv_0_3 1
+#define pi_inv_0_4 3
+#define pi_inv_1_0 3
+#define pi_inv_1_1 0
+#define pi_inv_1_2 2
+#define pi_inv_1_3 4
+#define pi_inv_1_4 1
+#define pi_inv_2_0 1
+#define pi_inv_2_1 3
+#define pi_inv_2_2 0
+#define pi_inv_2_3 2
+#define pi_inv_2_4 4
+#define pi_inv_3_0 4
+#define pi_inv_3_1 1
+#define pi_inv_3_2 3
+#define pi_inv_3_3 0
+#define pi_inv_3_4 2
+#define pi_inv_4_0 2
+#define pi_inv_4_1 4
+#define pi_inv_4_2 1
+#define pi_inv_4_3 3
+#define pi_inv_4_4 0
+
 
 #define ONE 0xFFFFFFFFFFFFFFFF
 
@@ -181,7 +220,7 @@ uint64_t RC[24] = {
   TRP_ROW(3, x) \
   TRP_ROW(4, x)
 #define TRP_ROW(y, x) \
-  ctx->B[pi_inv[y][x]][y] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
+  ctx->B[pi_inv(y,x)][y] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets(y, x));
 #define CHI_ROW(y) \
   CHI_COL(y, 0) \
   CHI_COL(y, 1) \
@@ -190,7 +229,7 @@ uint64_t RC[24] = {
   CHI_COL(y, 4)
 #define CHI_COL(y, x) \
   ctx->A[y][x] = ctx->B[y][x] ^ (ctx->B[y][mod5p1(x)] ^ ONE) & ctx->B[y][mod5p2_ ## x];
-#define rnd(ctx, ir) \
+#define ROUND(ctx, ir) \
   /* theta/2 */ \
   COL_SUM(0); \
   COL_SUM(1); \
@@ -222,10 +261,11 @@ add_block(SHA3Context *ctx, const unsigned char *input)
   for (int i=0; i<ctx->r; ++i) {
     state[i] ^= input[i];
   }
-
   FROM_LITTLE_ENDIAN(ctx);
+
+  // Emprically, unrolling this loop doesn't help
   for (int ir=0; ir<24; ++ir) {
-    rnd(ctx, ir);
+    ROUND(ctx, ir);
   }
 }
 
@@ -286,44 +326,3 @@ SHA3_End(SHA3Context *ctx, unsigned char *digest,
   FROM_LITTLE_ENDIAN(ctx);
   *digestLen = ctx->d;
 }
-
-/*
-#include <stdio.h>
-
-int main() {
-  int inv_x[5][5];
-  int inv_y[5][5];
-
-  for (int y=0; y<5; ++y) {
-    for (int x=0; x<5; ++x) {
-      inv_x[y][pi_x[x][y]] = x;
-      inv_y[y][pi_x[x][y]] = y;
-    }
-  }
-
-  for (int y=0; y<5; ++y) {
-    for (int x=0; x<5; ++x) {
-      int x1 = y;
-      int y1 = pi_x[y][x];
-      int x2 = inv_x[x1][y1];
-      int y2 = x1;
-      printf("(%d, %d) -> (%d, %d) -> (%d, %d) \n", x, y, x1, y1, x2, y2);
-    }
-    printf("\n");
-  }
-
-  printf("inv_x = {\n");
-  for (int y=0; y<5; ++y) {
-    printf("  {%d, %d, %d, %d, %d},\n", inv_x[y][0], inv_x[y][1], inv_x[y][2], inv_x[y][3], inv_x[y][4]);
-  }
-  printf("}\n");
-
-  printf("inv_y = {\n");
-  for (int y=0; y<5; ++y) {
-    printf("  {%d, %d, %d, %d, %d},\n", inv_y[y][0], inv_y[y][1], inv_y[y][2], inv_y[y][3], inv_y[y][4]);
-  }
-  printf("}\n");
-
-  return 0;
-}
-*/

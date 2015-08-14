@@ -67,16 +67,36 @@ SHA3_512_Begin(SHA3Context *ctx)
 
 /****************************************************************/
 
-uint64_t swap_endian_lane(uint64_t x) {
-  int i;
-  uint64_t y = 0;
-  for (i = 0; i < 8; ++i) {
-    y <<= 8;
-    y |= (x%0x100);
-    x >>= 8;
-  }
-  return y;
+#if defined(_MSC_VER)
+#pragma intrinsic(_rotr64,_rotl64)
+#define ROTR64(x,n) _rotr64(x,n)
+#define ROTL64(x,n) _rotl64(x,n)
+#else
+#define ROTR64(x,n) ((x >> n) | (x << (64 - n)))
+#define ROTL64(x,n) ((x << n) | (x >> (64 - n)))
+#endif
+
+#if defined(_MSC_VER)
+#pragma intrinsic(_byteswap_uint64)
+#define SHA_HTONLL(x) _byteswap_uint64(x)
+
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined(__x86_64))
+static __inline__ uint64_t swap8b(uint64_t value)
+{
+    __asm__("bswapq %0" : "+r" (value));
+    return (value);
 }
+#define SHA_HTONLL(x) swap8b(x)
+
+#else
+#define SHA_MASK16 ULLC(0000FFFF,0000FFFF)
+#define SHA_MASK8  ULLC(00FF00FF,00FF00FF)
+#define SHA_HTONLL(x) (t1 = x, \
+  t1 = ((t1 & SHA_MASK8 ) <<  8) | ((t1 >>  8) & SHA_MASK8 ), \
+  t1 = ((t1 & SHA_MASK16) << 16) | ((t1 >> 16) & SHA_MASK16), \
+  (t1 >> 32) | (t1 << 32))
+#endif
+#define BYTESWAP8(x)  x = SHA_HTONLL(x)
 
 // This lets us just memcpy / xor to byte arrays
 void
@@ -84,7 +104,7 @@ swap_endian(SHA3Context *ctx) {
   for (int x=0; x<5; ++x) {
     for (int y=0; y<5; ++y) {
       // TODO Just do this in-place?
-      ctx->A[y][x] = swap_endian_lane(ctx->A[y][x]);
+      ctx->A[y][x] = BYTESWAP8(ctx->A[y][x]);
     }
   }
 }
@@ -102,7 +122,6 @@ swap_endian(SHA3Context *ctx) {
 // Parentheses are abundant here, but necessary in order to get
 // the expected operator precedence while saving the function
 // call overhead
-#define rotl(x, n)  (((x) << n) | ((x) >> (64 - n)))
 
 #define rho_offsets(y,x) rho_offsets_ ## y ## _ ## x
 #define rho_offsets_0_0 0
@@ -213,14 +232,14 @@ uint64_t RC[24] = {
 #define COL_SUM(x) \
   ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
 #define TRP_COL(x) \
-  ctx->D[x] = ctx->C[mod5m1(x)] ^ rotl(ctx->C[mod5p1(x)], 1); \
+  ctx->D[x] = ctx->C[mod5m1(x)] ^ ROTL64(ctx->C[mod5p1(x)], 1); \
   TRP_ROW(0, x) \
   TRP_ROW(1, x) \
   TRP_ROW(2, x) \
   TRP_ROW(3, x) \
   TRP_ROW(4, x)
 #define TRP_ROW(y, x) \
-  ctx->B[pi_inv(y,x)][y] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets(y, x));
+  ctx->B[pi_inv(y,x)][y] = ROTL64(ctx->A[y][x] ^ ctx->D[x], rho_offsets(y, x));
 #define CHI_ROW(y) \
   CHI_COL(y, 0) \
   CHI_COL(y, 1) \
@@ -271,7 +290,7 @@ add_block(SHA3Context *ctx, const unsigned char *input)
 
 void
 SHA3_Update(SHA3Context *ctx, const unsigned char *input,
-		        unsigned int inputLen)
+                        unsigned int inputLen)
 {
   // If we still haven't made a full block, just buffer
   if (ctx->todoLength + inputLen < ctx->r) {

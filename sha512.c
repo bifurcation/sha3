@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#define PRUint8 uint8_t
+#define PRUint32 uint32_t
 #define SHA256_LENGTH 32
 #define SHA512_LENGTH 64
 #define SECStatus int

@@ -112,12 +112,12 @@ static const size_t rho_offsets[5][5] = {
   {18,  2, 61, 56, 14}
 };
 
-static const int pi_x[5][5] = {
-  {0, 3, 1, 4, 2},
-  {1, 4, 2, 0, 3},
-  {2, 0, 3, 1, 4},
-  {3, 1, 4, 2, 0},
-  {4, 2, 0, 3, 1}
+static const int pi_inv[5][5] = {
+  {0, 2, 4, 1, 3},
+  {3, 0, 2, 4, 1},
+  {1, 3, 0, 2, 4},
+  {4, 1, 3, 0, 2},
+  {2, 4, 1, 3, 0}
 };
 
 #define ONE 0xFFFFFFFFFFFFFFFF
@@ -162,21 +162,21 @@ int rnd(SHA3Context* ctx, int ir) {
     ctx->C[x] = ctx->A[0][x] ^ ctx->A[1][x] ^ ctx->A[2][x] ^ ctx->A[3][x] ^ ctx->A[4][x];
   }
 
-  // theta/2 rho + pi/2
+  // theta/2 + rho
   for (x = 0; x < 5; ++x) {
     ctx->D[x] = ctx->C[mod5m1[x]] ^ rotl(ctx->C[mod5p1[x]], 1);
 
     for (y = 0; y < 5; ++y) {
-      ctx->B[y][x] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
+      ctx->B[pi_inv[y][x]][y] = rotl(ctx->A[y][x] ^ ctx->D[x], rho_offsets[y][x]);
     }
   }
 
-  // pi/2 + chi
+  // chi
   for (x = 0; x < 5; ++x) {
     for (y = 0; y < 5; ++y) {
-      ctx->A[y][x] = ctx->B[x][pi_x[x][y]] ^
-                     (ctx->B[mod5p1[x]][pi_x[mod5p1[x]][y]] ^ ONE) &
-                     ctx->B[mod5p2[x]][pi_x[mod5p2[x]][y]];
+      ctx->A[y][x] = ctx->B[y][x] ^
+                     (ctx->B[y][mod5p1[x]] ^ ONE) &
+                     ctx->B[y][mod5p2[x]];
     }
   }
 
@@ -260,3 +260,44 @@ SHA3_End(SHA3Context *ctx, unsigned char *digest,
   FROM_LITTLE_ENDIAN(ctx);
   *digestLen = ctx->d;
 }
+
+/*
+#include <stdio.h>
+
+int main() {
+  int inv_x[5][5];
+  int inv_y[5][5];
+
+  for (int y=0; y<5; ++y) {
+    for (int x=0; x<5; ++x) {
+      inv_x[y][pi_x[x][y]] = x;
+      inv_y[y][pi_x[x][y]] = y;
+    }
+  }
+
+  for (int y=0; y<5; ++y) {
+    for (int x=0; x<5; ++x) {
+      int x1 = y;
+      int y1 = pi_x[y][x];
+      int x2 = inv_x[x1][y1];
+      int y2 = x1;
+      printf("(%d, %d) -> (%d, %d) -> (%d, %d) \n", x, y, x1, y1, x2, y2);
+    }
+    printf("\n");
+  }
+
+  printf("inv_x = {\n");
+  for (int y=0; y<5; ++y) {
+    printf("  {%d, %d, %d, %d, %d},\n", inv_x[y][0], inv_x[y][1], inv_x[y][2], inv_x[y][3], inv_x[y][4]);
+  }
+  printf("}\n");
+
+  printf("inv_y = {\n");
+  for (int y=0; y<5; ++y) {
+    printf("  {%d, %d, %d, %d, %d},\n", inv_y[y][0], inv_y[y][1], inv_y[y][2], inv_y[y][3], inv_y[y][4]);
+  }
+  printf("}\n");
+
+  return 0;
+}
+*/

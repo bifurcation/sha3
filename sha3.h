@@ -48,10 +48,10 @@ typedef struct SHA3ContextStr {
   uint8_t todoLength;
 
   /* Sponge state */
-  uint64_t A[5][5];
+  uint64_t A[25];
 
   /* Temporary storage for in-place [chi] */
-  uint64_t B[5][5];
+  uint64_t B[25];
 
   /* Temporary column sums [theta] */
   uint64_t C[5];
@@ -69,16 +69,16 @@ extern void SHA3_256_Begin(SHA3Context *cx);
 extern void SHA3_384_Begin(SHA3Context *cx);
 extern void SHA3_512_Begin(SHA3Context *cx);
 extern void SHA3_Update(SHA3Context *cx, const unsigned char *input,
-			                  unsigned int inputLen);
+                                          unsigned int inputLen);
 extern void SHA3_End(SHA3Context *cx, unsigned char *digest,
-		                 unsigned int *digestLen, unsigned int maxDigestLen);
+                                 unsigned int *digestLen, unsigned int maxDigestLen);
 
 /*
 // TODO implement the below, with appropriate repetition to
 //      account for the various hash sizes
 
 extern SECStatus SHA256_HashBuf(unsigned char *dest, const unsigned char *src,
-				PRUint32 src_length);
+                                PRUint32 src_length);
 extern SECStatus SHA256_Hash(unsigned char *dest, const char *src);
 extern void SHA256_TraceState(SHA256Context *cx);
 extern unsigned int SHA256_FlattenSize(SHA256Context *cx);

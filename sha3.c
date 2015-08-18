@@ -105,6 +105,40 @@ dump_buf(char *label, const unsigned char *b, int size)
 }
 #endif
 
+#define UNROLL5(x)  \
+  x(0);             \
+  x(1);             \
+  x(2);             \
+  x(3);             \
+  x(4)
+
+#define UNROLL25(x) \
+  x(0);             \
+  x(1);             \
+  x(2);             \
+  x(3);             \
+  x(4);             \
+  x(5);             \
+  x(6);             \
+  x(7);             \
+  x(8);             \
+  x(9);             \
+  x(10);            \
+  x(11);            \
+  x(12);            \
+  x(13);            \
+  x(14);            \
+  x(15);            \
+  x(16);            \
+  x(17);            \
+  x(18);            \
+  x(19);            \
+  x(20);            \
+  x(21);            \
+  x(22);            \
+  x(23);            \
+  x(24)
+
 /*
  * The z bits are stored in a single 64 bit word and all operations run
  * against that word, so a single assigment or operation operates on all
@@ -140,21 +174,22 @@ sha3_theta(SHA3Context *ctx)
     PRUint64 C[X_SIZE];
     PRUint64 D;
     PRUint64 *A = &ctx->A1[0];
-    int x;
 
-    for (x=0; x< X_SIZE; x++) {
-        C[x] = A[IN(x,0)] ^ A[IN(x,1)] ^ A[IN(x,2)]
-                                        ^ A[IN(x,3)] ^ A[IN(x,4)];
-    }
-    for (x=0; x < X_SIZE; x++) {
-        D = C[LEFT(x)] ^ ROTL(C[RIGHT(x)],1);
-        A[IN(x,0)] ^= D;
-        A[IN(x,1)] ^= D;
-        A[IN(x,2)] ^= D;
-        A[IN(x,3)] ^= D;
-        A[IN(x,4)] ^= D;
-    }
-    return;
+#define PHASE_THETA1(x)                         \
+    C[x] = A[IN(x,0)] ^ A[IN(x,1)] ^ A[IN(x,2)] \
+        ^ A[IN(x,3)] ^ A[IN(x,4)]
+
+    UNROLL5(PHASE_THETA1);
+
+#define PHASE_THETA2(x)                   \
+    D = C[LEFT(x)] ^ ROTL(C[RIGHT(x)],1); \
+    A[IN(x,0)] ^= D;                      \
+    A[IN(x,1)] ^= D;                      \
+    A[IN(x,2)] ^= D;                      \
+    A[IN(x,3)] ^= D;                      \
+    A[IN(x,4)] ^= D
+
+    UNROLL5(PHASE_THETA2);
 }
 
 /*
@@ -181,7 +216,6 @@ sha3_theta(SHA3Context *ctx)
  *
  * Note here, we are precalculationg everything and change this to 24 rotate
  * operations, rather than the hunt an peck style of the original.
- */
 static unsigned long rho_offset[X_SIZE*Y_SIZE] = {
      0,  1, 62, 28, 91,
     36, 44,  6, 55, 20,
@@ -189,16 +223,44 @@ static unsigned long rho_offset[X_SIZE*Y_SIZE] = {
     41, 45, 15, 21,  8,
     18,  2, 61, 56, 14
 };
+ */
+
+#define RHO(x) RHO_ ## x
+#define RHO_0 64
+#define RHO_1 1
+#define RHO_2 62
+#define RHO_3 28
+#define RHO_4 27
+#define RHO_5 36
+#define RHO_6 44
+#define RHO_7 6
+#define RHO_8 55
+#define RHO_9 20
+#define RHO_10 3
+#define RHO_11 10
+#define RHO_12 43
+#define RHO_13 25
+#define RHO_14 39
+#define RHO_15 41
+#define RHO_16 45
+#define RHO_17 15
+#define RHO_18 21
+#define RHO_19 8
+#define RHO_20 18
+#define RHO_21 2
+#define RHO_22 61
+#define RHO_23 56
+#define RHO_24 14
 
 static inline void
 sha3_rho(SHA3Context *ctx)
 {
     PRUint64 *A = &ctx->A1[0];
-    int i;
 
-    for (i=1; i < X_SIZE*Y_SIZE; i++) {
-        A[i] = ROTL(A[i],rho_offset[i]);
-    }
+#define PHASE_RHO(i) \
+    A[i] = ROTL(A[i],RHO(i))
+
+    UNROLL25(PHASE_RHO);
 }
 
 /*
@@ -216,24 +278,52 @@ sha3_rho(SHA3Context *ctx)
  * y=2 (1,0) (2,1) (3,2) (4,3) (0,4)
  * y=3 (4,0) (0,1) (1,2) (2,3) (3,4)
  * y=4 (2,0) (3,1) (4,2) (0,3) (1,4)
- */
-static int pi_rotate[X_SIZE*Y_SIZE] = {
+
+ static int pi_rotate[X_SIZE*Y_SIZE] = {
      0,  6, 12, 18, 24,
      3,  9, 10, 16, 22,
      1,  7, 13, 19, 20,
      4,  5, 11, 17, 23,
      2,  8, 14, 15, 21 };
+*/
+
+#define PIR(x) PIR_ ## x
+#define PIR_0 0
+#define PIR_1 6
+#define PIR_2 12
+#define PIR_3 18
+#define PIR_4 24
+#define PIR_5 3
+#define PIR_6 9
+#define PIR_7 10
+#define PIR_8 16
+#define PIR_9 22
+#define PIR_10 1
+#define PIR_11 7
+#define PIR_12 13
+#define PIR_13 19
+#define PIR_14 20
+#define PIR_15 4
+#define PIR_16 5
+#define PIR_17 11
+#define PIR_18 17
+#define PIR_19 23
+#define PIR_20 2
+#define PIR_21 8
+#define PIR_22 14
+#define PIR_23 15
+#define PIR_24 21
 
 static inline void
 sha3_pi(SHA3Context *ctx)
 {
     PRUint64 *A = &ctx->A1[0];
     PRUint64 *A_prime = &ctx->A2[0];
-    int i;
 
-    for (i=0; i < X_SIZE*Y_SIZE; i++) {
-        A_prime[i] = A[pi_rotate[i]];
-    }
+#define PHASE_PI(i)                             \
+    A_prime[i] = A[PIR(i)]
+
+    UNROLL25(PHASE_PI);
 }
 
 /*
@@ -252,27 +342,77 @@ sha3_pi(SHA3Context *ctx)
  * y=3 (1,3) (2,3) (3,3) (4,3) (0,3)
  * y=4 (1,4) (2,4) (3,4) (4,4) (0,4)
  *
- */
 static int chi_right[X_SIZE*Y_SIZE] = {
      1,  2,  3,  4,  0,
      6,  7,  8,  9,  5,
     11, 12, 13, 14, 10,
     16, 17, 18, 19, 15,
     21, 22, 23, 24, 20 };
+ */
 
+#define CHIR(x) CHIR_ ## x
+#define CHIR_0 1
+#define CHIR_1 2
+#define CHIR_2 3
+#define CHIR_3 4
+#define CHIR_4 0
+#define CHIR_5 6
+#define CHIR_6 7
+#define CHIR_7 8
+#define CHIR_8 9
+#define CHIR_9 5
+#define CHIR_10 11
+#define CHIR_11 12
+#define CHIR_12 13
+#define CHIR_13 14
+#define CHIR_14 10
+#define CHIR_15 16
+#define CHIR_16 17
+#define CHIR_17 18
+#define CHIR_18 19
+#define CHIR_19 15
+#define CHIR_20 21
+#define CHIR_21 22
+#define CHIR_22 23
+#define CHIR_23 24
+#define CHIR_24 20
+
+#define CHIR2(x) CHIR2_ ## x
+#define CHIR2_0 2
+#define CHIR2_1 3
+#define CHIR2_2 4
+#define CHIR2_3 0
+#define CHIR2_4 1
+#define CHIR2_5 7
+#define CHIR2_6 8
+#define CHIR2_7 9
+#define CHIR2_8 5
+#define CHIR2_9 6
+#define CHIR2_10 12
+#define CHIR2_11 13
+#define CHIR2_12 14
+#define CHIR2_13 15
+#define CHIR2_14 10
+#define CHIR2_15 17
+#define CHIR2_16 18
+#define CHIR2_17 19
+#define CHIR2_18 20
+#define CHIR2_19 16
+#define CHIR2_20 22
+#define CHIR2_21 23
+#define CHIR2_22 24
+#define CHIR2_23 20
+#define CHIR2_24 21
 
 static inline void
 sha3_chi(SHA3Context *ctx)
 {
     PRUint64 *A = &ctx->A2[0];
     PRUint64 *A_prime = &ctx->A1[0];
-    int i;
+#define CHI_(x) \
+    A_prime[x] = A[x] ^ (~A[CHIR(x)] & A[CHIR2(x)]);
 
-    for (i=0; i < X_SIZE*Y_SIZE; i++) {
-        int right = chi_right[i];
-        A_prime[i] = A[i] ^ (~A[right] & A[chi_right[right]]);
-    }
-
+    UNROLL25(CHI_);
 }
 
 /*

@@ -64,8 +64,8 @@ uint32_t measureRandomBuffer_224(uint32_t dtMin, size_t size)
         t0 = HiResTime();
 
         SHA3_224_Begin(ctx);
-        SHA3_Update(ctx, input, size);
-        SHA3_End(ctx, digest, &digestLen, 64);
+        SHA3_224_Update(ctx, input, size);
+        SHA3_224_End(ctx, digest, &digestLen, 64);
 
         t1 = HiResTime();
         if (tMin > t1-t0 - dtMin) {
@@ -92,8 +92,8 @@ uint32_t measureRandomBuffer_256(uint32_t dtMin, size_t size)
         t0 = HiResTime();
 
         SHA3_256_Begin(ctx);
-        SHA3_Update(ctx, input, size);
-        SHA3_End(ctx, digest, &digestLen, 64);
+        SHA3_256_Update(ctx, input, size);
+        SHA3_256_End(ctx, digest, &digestLen, 64);
 
         t1 = HiResTime();
         if (tMin > t1-t0 - dtMin) {
@@ -120,8 +120,8 @@ uint32_t measureRandomBuffer_384(uint32_t dtMin, size_t size)
         t0 = HiResTime();
 
         SHA3_384_Begin(ctx);
-        SHA3_Update(ctx, input, size);
-        SHA3_End(ctx, digest, &digestLen, 64);
+        SHA3_384_Update(ctx, input, size);
+        SHA3_384_End(ctx, digest, &digestLen, 64);
 
         t1 = HiResTime();
         if (tMin > t1-t0 - dtMin) {
@@ -148,8 +148,8 @@ uint32_t measureRandomBuffer_512(uint32_t dtMin, size_t size)
         t0 = HiResTime();
 
         SHA3_512_Begin(ctx);
-        SHA3_Update(ctx, input, size);
-        SHA3_End(ctx, digest, &digestLen, 64);
+        SHA3_512_Update(ctx, input, size);
+        SHA3_512_End(ctx, digest, &digestLen, 64);
 
         t1 = HiResTime();
         if (tMin > t1-t0 - dtMin) {

@@ -199,13 +199,11 @@ sha3_theta(SHA3Context *ctx)
     PRUint64 D;
     PRUint64 *A = &ctx->A1[0];
 
-#define PHASE_THETA1(x)                         \
+#define STEP_THETA1(x)                          \
     C[x] = A[IN(x,0)] ^ A[IN(x,1)] ^ A[IN(x,2)] \
         ^ A[IN(x,3)] ^ A[IN(x,4)]
 
-    UNROLL5(PHASE_THETA1);
-
-#define PHASE_THETA2(x)                   \
+#define STEP_THETA2(x)                    \
     D = C[LEFT(x)] ^ ROTL(C[RIGHT(x)],1); \
     A[IN(x,0)] ^= D;                      \
     A[IN(x,1)] ^= D;                      \
@@ -213,11 +211,12 @@ sha3_theta(SHA3Context *ctx)
     A[IN(x,3)] ^= D;                      \
     A[IN(x,4)] ^= D
 
-    UNROLL5(PHASE_THETA2);
+    UNROLL5(STEP_THETA1);
+    UNROLL5(STEP_THETA2);
 }
 
 /*
- *  Rho input = A1, output=A2
+ *  Rho modifies A1 in place
  *
  * From section 3.2.2 FIPS-202: w=64 bits
  *
@@ -240,13 +239,6 @@ sha3_theta(SHA3Context *ctx)
  *
  * Note here, we are precalculationg everything and change this to 24 rotate
  * operations, rather than the hunt an peck style of the original.
-static unsigned long rho_offset[X_SIZE*Y_SIZE] = {
-     0,  1, 62, 28, 91,
-    36, 44,  6, 55, 20,
-     3, 10, 43, 25, 39,
-    41, 45, 15, 21,  8,
-    18,  2, 61, 56, 14
-};
  */
 
 #define RHO(x) RHO_ ## x
@@ -281,10 +273,10 @@ sha3_rho(SHA3Context *ctx)
 {
     PRUint64 *A = &ctx->A1[0];
 
-#define PHASE_RHO(i) \
+#define STEP_RHO(i) \
     A[i] = ROTL(A[i],RHO(i))
 
-    UNROLL25(PHASE_RHO);
+    UNROLL25(STEP_RHO);
 }
 
 /*
@@ -302,14 +294,7 @@ sha3_rho(SHA3Context *ctx)
  * y=2 (1,0) (2,1) (3,2) (4,3) (0,4)
  * y=3 (4,0) (0,1) (1,2) (2,3) (3,4)
  * y=4 (2,0) (3,1) (4,2) (0,3) (1,4)
-
- static int pi_rotate[X_SIZE*Y_SIZE] = {
-     0,  6, 12, 18, 24,
-     3,  9, 10, 16, 22,
-     1,  7, 13, 19, 20,
-     4,  5, 11, 17, 23,
-     2,  8, 14, 15, 21 };
-*/
+ */
 
 #define PIR(x) PIR_ ## x
 #define PIR_0 0
@@ -344,10 +329,10 @@ sha3_pi(SHA3Context *ctx)
     PRUint64 *A = &ctx->A1[0];
     PRUint64 *A_prime = &ctx->A2[0];
 
-#define PHASE_PI(i)                             \
+#define STEP_PI(i)                              \
     A_prime[i] = A[PIR(i)]
 
-    UNROLL25(PHASE_PI);
+    UNROLL25(STEP_PI);
 }
 
 /*
@@ -366,77 +351,21 @@ sha3_pi(SHA3Context *ctx)
  * y=3 (1,3) (2,3) (3,3) (4,3) (0,3)
  * y=4 (1,4) (2,4) (3,4) (4,4) (0,4)
  *
-static int chi_right[X_SIZE*Y_SIZE] = {
-     1,  2,  3,  4,  0,
-     6,  7,  8,  9,  5,
-    11, 12, 13, 14, 10,
-    16, 17, 18, 19, 15,
-    21, 22, 23, 24, 20 };
  */
 
-#define CHIR(x) CHIR_ ## x
-#define CHIR_0 1
-#define CHIR_1 2
-#define CHIR_2 3
-#define CHIR_3 4
-#define CHIR_4 0
-#define CHIR_5 6
-#define CHIR_6 7
-#define CHIR_7 8
-#define CHIR_8 9
-#define CHIR_9 5
-#define CHIR_10 11
-#define CHIR_11 12
-#define CHIR_12 13
-#define CHIR_13 14
-#define CHIR_14 10
-#define CHIR_15 16
-#define CHIR_16 17
-#define CHIR_17 18
-#define CHIR_18 19
-#define CHIR_19 15
-#define CHIR_20 21
-#define CHIR_21 22
-#define CHIR_22 23
-#define CHIR_23 24
-#define CHIR_24 20
-
-#define CHIR2(x) CHIR2_ ## x
-#define CHIR2_0 2
-#define CHIR2_1 3
-#define CHIR2_2 4
-#define CHIR2_3 0
-#define CHIR2_4 1
-#define CHIR2_5 7
-#define CHIR2_6 8
-#define CHIR2_7 9
-#define CHIR2_8 5
-#define CHIR2_9 6
-#define CHIR2_10 12
-#define CHIR2_11 13
-#define CHIR2_12 14
-#define CHIR2_13 15
-#define CHIR2_14 10
-#define CHIR2_15 17
-#define CHIR2_16 18
-#define CHIR2_17 19
-#define CHIR2_18 20
-#define CHIR2_19 16
-#define CHIR2_20 22
-#define CHIR2_21 23
-#define CHIR2_22 24
-#define CHIR2_23 20
-#define CHIR2_24 21
 
 static inline void
 sha3_chi(SHA3Context *ctx)
 {
     PRUint64 *A = &ctx->A2[0];
     PRUint64 *A_prime = &ctx->A1[0];
-#define CHI_(x) \
-    A_prime[x] = A[x] ^ (~A[CHIR(x)] & A[CHIR2(x)]);
+#define CHIR(x,i) (x / X_SIZE) * X_SIZE + ((x + i) % X_SIZE)
+#define CHIR1(x) CHIR(x,1)
+#define CHIR2(x) CHIR(x,2)
+#define STEP_CHI(x) \
+    A_prime[x] = A[x] ^ (~A[CHIR1(x)] & A[CHIR2(x)])
 
-    UNROLL25(CHI_);
+    UNROLL25(STEP_CHI);
 }
 
 /*

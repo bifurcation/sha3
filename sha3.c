@@ -42,6 +42,30 @@ struct SHA3ContextStr {
 #define ROTR(a,n) (((a)>>(n))|((a)<<(64-n)))
 #endif
 
+#if defined(_MSC_VER)
+#pragma intrinsic(_byteswap_uint64)
+#define SHA_HTONLL(x) _byteswap_uint64(x)
+
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined(__x86_64))
+static __inline__ uint64_t swap8b(uint64_t value)
+{
+    __asm__("bswapq %0" : "+r" (value));
+    return (value);
+}
+#define SHA_HTONLL(x) swap8b(x)
+
+#else
+#define SHA_MASK16 ULLC(0000FFFF,0000FFFF)
+#define SHA_MASK8  ULLC(00FF00FF,00FF00FF)
+static PRUint64 swap8b(PRUint64 x)  {
+  PRUint64 t1 = x;
+  t1 = ((t1 & SHA_MASK8 ) <<  8) | ((t1 >>  8) & SHA_MASK8 );
+  t1 = ((t1 & SHA_MASK16) << 16) | ((t1 >> 16) & SHA_MASK16);
+  return (t1 >> 32) | (t1 << 32);
+}
+#define SHA_HTONLL swap8b
+#endif
+#define BYTESWAP8(x) x = SHA_HTONLL(x)
 
 /* Select the x value to the left or right */
 #define LEFT(x) ((x) == 0 ? (X_SIZE-1) : ((x)-1))
@@ -500,25 +524,30 @@ Keccak_f(SHA3Context *ctx)
     }
 }
 
+
 static void
 sha3_absorb(SHA3Context *ctx, const unsigned char *Nr, unsigned int r)
 {
    /* convert to PRUint64's */
    unsigned int i;
    PRUint64 *A = &ctx->A1[0];
+   PRUint64 *N = (PRUint64*)Nr;
 
    PORT_Assert((r & 0xf) == 0);
    DUMP_BUF("Data to be absorbed", Nr, r);
 
-   for (i=0; i < r; i += sizeof(PRUint64)) {
-        PRUint64 P = ((PRUint64)Nr[0])   | (((PRUint64)Nr[1]) <<  8) |
-             (((PRUint64)Nr[2]) << 16) | (((PRUint64)Nr[3]) << 24) |
-             (((PRUint64)Nr[4]) << 32) | (((PRUint64)Nr[5]) << 40) |
-             (((PRUint64)Nr[6]) << 48) | (((PRUint64)Nr[7]) << 56);
-        *A ^= P;
-        A++;
-        Nr += sizeof(PRUint64);
+#ifdef PR_BIG_ENDIAN
+#define INVERT_CTX(x) BYTESWAP8(A[x])
+#else
+#define INVERT_CTX(x)
+#endif
+
+   UNROLL25(INVERT_CTX);
+   for (i = 0; i < r / sizeof(PRUint64); ++i) {
+     A[i] ^= N[i];
    }
+   UNROLL25(INVERT_CTX);
+
    DUMP_BYTES("Xor'd state(in bytes)",ctx->A1);
    DUMP_LANES("Xor'd state(as lanes)",ctx->A1);
    Keccak_f(ctx);

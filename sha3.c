@@ -129,38 +129,38 @@ dump_buf(char *label, const unsigned char *b, int size)
 }
 #endif
 
-#define UNROLL5(x)  \
-  x(0);             \
-  x(1);             \
-  x(2);             \
-  x(3);             \
+#define UNROLL_5(x)                            \
+  x(0);                                         \
+  x(1);                                         \
+  x(2);                                         \
+  x(3);                                         \
   x(4)
 
-#define UNROLL25(x) \
-  x(0);             \
-  x(1);             \
-  x(2);             \
-  x(3);             \
-  x(4);             \
-  x(5);             \
-  x(6);             \
-  x(7);             \
-  x(8);             \
-  x(9);             \
-  x(10);            \
-  x(11);            \
-  x(12);            \
-  x(13);            \
-  x(14);            \
-  x(15);            \
-  x(16);            \
-  x(17);            \
-  x(18);            \
-  x(19);            \
-  x(20);            \
-  x(21);            \
-  x(22);            \
-  x(23);            \
+#define UNROLL_25(x)                           \
+  x(0);                                         \
+  x(1);                                         \
+  x(2);                                         \
+  x(3);                                         \
+  x(4);                                         \
+  x(5);                                         \
+  x(6);                                         \
+  x(7);                                         \
+  x(8);                                         \
+  x(9);                                         \
+  x(10);                                        \
+  x(11);                                        \
+  x(12);                                        \
+  x(13);                                        \
+  x(14);                                        \
+  x(15);                                        \
+  x(16);                                        \
+  x(17);                                        \
+  x(18);                                        \
+  x(19);                                        \
+  x(20);                                        \
+  x(21);                                        \
+  x(22);                                        \
+  x(23);                                        \
   x(24)
 
 /*
@@ -211,19 +211,21 @@ sha3_theta(SHA3Context *ctx)
     A[IN(x,3)] ^= D;                      \
     A[IN(x,4)] ^= D
 
-    UNROLL5(STEP_THETA1);
-    UNROLL5(STEP_THETA2);
+    UNROLL_5(STEP_THETA1);
+    UNROLL_5(STEP_THETA2);
 }
 
 /*
- *  Rho and Pi steps in one go
+ * Rho and Pi steps are combined
+ *
+ * Rho...
  *
  * From section 3.2.2 FIPS-202: w=64 bits
  *
  *  For all z such that 0<=z<w let A'[0,0,z]=A[0,0,z]
  *  Let (x,y) = (1,0)
  *  For t from 0 to 23:
- *     a. for all z such that 0<=z<w let A'[x,y,z]=A[x,y,9z-(t+1)(t+2)/2) mod w]
+ *     a. for all z such that 0<=z<w let A'[x,y,z]=A[x,y,(9z-(t+1)(t+2)/2) mod w]
  *     b. let (x,y)=(y,(2*x+3*y) mod 5)
  *
  * Table 2: effective offsets (reordered)
@@ -242,7 +244,7 @@ sha3_theta(SHA3Context *ctx)
  */
 
 #define RHO(x) RHO_ ## x
-#define RHO_0 64
+#define RHO_0 0
 #define RHO_1 1
 #define RHO_2 62
 #define RHO_3 28
@@ -331,7 +333,9 @@ sha3_rho_pi(SHA3Context *ctx)
 #define STEP_RHO_PI(i) \
     A_prime[PI_INV(i)] = ROTL(A[i],RHO(i))
 
-    UNROLL25(STEP_RHO_PI);
+    // n.b., Emprically, separating out the no-op on index 0 significantly
+    // degrades performance here, even though it represents fewer operations.
+    UNROLL_25(STEP_RHO_PI);
 }
 
 /*
@@ -349,9 +353,7 @@ sha3_rho_pi(SHA3Context *ctx)
  * y=2 (1,2) (2,2) (3,2) (4,2) (0,2)
  * y=3 (1,3) (2,3) (3,3) (4,3) (0,3)
  * y=4 (1,4) (2,4) (3,4) (4,4) (0,4)
- *
  */
-
 
 static inline void
 sha3_chi(SHA3Context *ctx)
@@ -364,7 +366,7 @@ sha3_chi(SHA3Context *ctx)
 #define STEP_CHI(x) \
     A_prime[x] = A[x] ^ (~A[CHIR1(x)] & A[CHIR2(x)])
 
-    UNROLL25(STEP_CHI);
+    UNROLL_25(STEP_CHI);
 }
 
 /*
@@ -468,11 +470,13 @@ sha3_absorb(SHA3Context *ctx, const unsigned char *Nr, unsigned int r)
 #define INVERT_CTX(x)
 #endif
 
-   UNROLL25(INVERT_CTX);
+   // Invert the context rather than the input.
+   // For all but a single iteration, this is faster.
+   UNROLL_25(INVERT_CTX);
    for (i = 0; i < r / sizeof(PRUint64); ++i) {
      A[i] ^= N[i];
    }
-   UNROLL25(INVERT_CTX);
+   UNROLL_25(INVERT_CTX);
 
    DUMP_BYTES("Xor'd state(in bytes)",ctx->A1);
    DUMP_LANES("Xor'd state(as lanes)",ctx->A1);

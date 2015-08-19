@@ -216,7 +216,7 @@ sha3_theta(SHA3Context *ctx)
 }
 
 /*
- *  Rho modifies A1 in place
+ *  Rho and Pi steps in one go
  *
  * From section 3.2.2 FIPS-202: w=64 bits
  *
@@ -268,19 +268,10 @@ sha3_theta(SHA3Context *ctx)
 #define RHO_23 56
 #define RHO_24 14
 
-static inline void
-sha3_rho(SHA3Context *ctx)
-{
-    PRUint64 *A = &ctx->A1[0];
-
-#define STEP_RHO(i) \
-    A[i] = ROTL(A[i],RHO(i))
-
-    UNROLL25(STEP_RHO);
-}
-
 /*
- *  Pi input = A1, output=A2
+ * For the Pi phase, we invert the calculation so that the output of the rho
+ * phase is written directly to the output in the locations dicated by the Pi
+ * phase.
  *
  * From section 3.2.3 FIPS-202: w=64 bits
  *
@@ -294,45 +285,53 @@ sha3_rho(SHA3Context *ctx)
  * y=2 (1,0) (2,1) (3,2) (4,3) (0,4)
  * y=3 (4,0) (0,1) (1,2) (2,3) (3,4)
  * y=4 (2,0) (3,1) (4,2) (0,3) (1,4)
+ *
+ * pi x/y inverse transform precalculated
+ *      x=0   x=1   x=2   x=3   x=4
+ * y=0 (0,0) (0,2) (0,4) (0,1) (0,3)
+ * y=1 (1,3) (1,0) (1,2) (1,4) (1,1)
+ * y=2 (2,1) (2,3) (2,0) (2,2) (2,4)
+ * y=3 (3,4) (3,1) (3,3) (3,0) (3,2)
+ * y=4 (4,2) (4,4) (4,1) (4,3) (4,0)
  */
 
-#define PIR(x) PIR_ ## x
-#define PIR_0 0
-#define PIR_1 6
-#define PIR_2 12
-#define PIR_3 18
-#define PIR_4 24
-#define PIR_5 3
-#define PIR_6 9
-#define PIR_7 10
-#define PIR_8 16
-#define PIR_9 22
-#define PIR_10 1
-#define PIR_11 7
-#define PIR_12 13
-#define PIR_13 19
-#define PIR_14 20
-#define PIR_15 4
-#define PIR_16 5
-#define PIR_17 11
-#define PIR_18 17
-#define PIR_19 23
-#define PIR_20 2
-#define PIR_21 8
-#define PIR_22 14
-#define PIR_23 15
-#define PIR_24 21
+#define PI_INV(x) PI_INV_ ## x
+#define PI_INV_0 0
+#define PI_INV_1 10
+#define PI_INV_2 20
+#define PI_INV_3 5
+#define PI_INV_4 15
+#define PI_INV_5 16
+#define PI_INV_6 1
+#define PI_INV_7 11
+#define PI_INV_8 21
+#define PI_INV_9 6
+#define PI_INV_10 7
+#define PI_INV_11 17
+#define PI_INV_12 2
+#define PI_INV_13 12
+#define PI_INV_14 22
+#define PI_INV_15 23
+#define PI_INV_16 8
+#define PI_INV_17 18
+#define PI_INV_18 3
+#define PI_INV_19 13
+#define PI_INV_20 14
+#define PI_INV_21 24
+#define PI_INV_22 9
+#define PI_INV_23 19
+#define PI_INV_24 4
 
 static inline void
-sha3_pi(SHA3Context *ctx)
+sha3_rho_pi(SHA3Context *ctx)
 {
     PRUint64 *A = &ctx->A1[0];
     PRUint64 *A_prime = &ctx->A2[0];
 
-#define STEP_PI(i)                              \
-    A_prime[i] = A[PIR(i)]
+#define STEP_RHO_PI(i) \
+    A_prime[PI_INV(i)] = ROTL(A[i],RHO(i))
 
-    UNROLL25(STEP_PI);
+    UNROLL25(STEP_RHO_PI);
 }
 
 /*
@@ -431,10 +430,8 @@ sha3_Rnd(SHA3Context *ctx, int iR)
 {
    sha3_theta(ctx);
    DUMP_BYTES("after Theta",ctx->A1);
-   sha3_rho(ctx);
-   DUMP_BYTES("after Rho",ctx->A1);
-   sha3_pi(ctx);
-   DUMP_BYTES("after Pi",ctx->A2);
+   sha3_rho_pi(ctx);
+   DUMP_BYTES("after Rho and Pi",ctx->A1);
    sha3_chi(ctx);
    DUMP_BYTES("after Chi",ctx->A1);
    sha3_iota(ctx, iR);

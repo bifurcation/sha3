@@ -65,7 +65,6 @@ static PRUint64 swap8b(PRUint64 x)  {
 }
 #define SHA_HTONLL swap8b
 #endif
-#define BYTESWAP8(x) x = SHA_HTONLL(x)
 
 /* Select the x value to the left or right */
 #define LEFT(x) ((x) == 0 ? (X_SIZE-1) : ((x)-1))
@@ -452,7 +451,6 @@ Keccak_f(SHA3Context *ctx)
     }
 }
 
-
 static void
 sha3_absorb(SHA3Context *ctx, const unsigned char *Nr, unsigned int r)
 {
@@ -464,19 +462,13 @@ sha3_absorb(SHA3Context *ctx, const unsigned char *Nr, unsigned int r)
    PORT_Assert((r & 0xf) == 0);
    DUMP_BUF("Data to be absorbed", Nr, r);
 
-#ifdef PR_BIG_ENDIAN
-#define INVERT_CTX(x) BYTESWAP8(A[x])
-#else
-#define INVERT_CTX(x)
-#endif
-
-   // Invert the context rather than the input.
-   // For all but a single iteration, this is faster.
-   UNROLL_25(INVERT_CTX);
    for (i = 0; i < r / sizeof(PRUint64); ++i) {
+#ifdef PR_BIG_ENDIAN
+     A[i] ^= SHA_HTONLL(N[i]);
+#else
      A[i] ^= N[i];
+#endif
    }
-   UNROLL_25(INVERT_CTX);
 
    DUMP_BYTES("Xor'd state(in bytes)",ctx->A1);
    DUMP_LANES("Xor'd state(as lanes)",ctx->A1);

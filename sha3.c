@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
+#include "sha3.h"
 typedef uint64_t PRUint64;
 typedef uint32_t PRUint32;
-typedef enum {PR_FALSE=0, PR_TRUE=1}  PRBool;
 typedef enum { SECSuccess=0, SECFailure=-1 } SECStatus;
 #define PORT_Assert(x)
 #define PORT_New(x) (x *)malloc(sizeof(x))
@@ -88,6 +88,7 @@ dump_bytes(char *label, const PRUint64 *a)
 #endif
 
 #if defined(TEST) || defined(TRACE)
+void
 dump_buf(char *label, const unsigned char *b, int size)
 {
     int i,z;

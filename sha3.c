@@ -20,6 +20,8 @@ typedef enum { SECSuccess=0, SECFailure=-1 } SECStatus;
 #define PORT_Strlen(x) strlen(x)
 /*** END NSPR polyfill ***/
 
+#define SHA_MIN(x,y) (((x)>(y))?(y):(x))
+
 #define X_SIZE 5
 #define Y_SIZE 5
 
@@ -58,10 +60,10 @@ static __inline__ uint64_t swap8b(uint64_t value)
 #define SHA_MASK16 ULLC(0000FFFF,0000FFFF)
 #define SHA_MASK8  ULLC(00FF00FF,00FF00FF)
 static PRUint64 swap8b(PRUint64 x)  {
-  PRUint64 t1 = x;
-  t1 = ((t1 & SHA_MASK8 ) <<  8) | ((t1 >>  8) & SHA_MASK8 );
-  t1 = ((t1 & SHA_MASK16) << 16) | ((t1 >> 16) & SHA_MASK16);
-  return (t1 >> 32) | (t1 << 32);
+    PRUint64 t1 = x;
+    t1 = ((t1 & SHA_MASK8 ) <<  8) | ((t1 >>  8) & SHA_MASK8 );
+    t1 = ((t1 & SHA_MASK16) << 16) | ((t1 >> 16) & SHA_MASK16);
+    return (t1 >> 32) | (t1 << 32);
 }
 #define SHA_HTONLL swap8b
 #endif
@@ -76,8 +78,6 @@ static PRUint64 swap8b(PRUint64 x)  {
 #define DUMP_LANES(label,A) dump_lanes(label,A)
 #define DUMP_BYTES(label,A) dump_bytes(label,A)
 #define DUMP_BUF(label,b,size) dump_buf(label,b,size)
-
-#define SHA_MIN(x,y) (((x)>(y))?(y):(x))
 
 static void
 dump_lanes(char *label, const PRUint64 *a)
@@ -130,39 +130,39 @@ dump_buf(char *label, const unsigned char *b, int size)
 }
 #endif
 
-#define UNROLL_5(x)                            \
-  x(0);                                         \
-  x(1);                                         \
-  x(2);                                         \
-  x(3);                                         \
-  x(4)
+#define UNROLL_5(x) \
+    x(0);           \
+    x(1);           \
+    x(2);           \
+    x(3);           \
+    x(4)
 
-#define UNROLL_25(x)                           \
-  x(0);                                         \
-  x(1);                                         \
-  x(2);                                         \
-  x(3);                                         \
-  x(4);                                         \
-  x(5);                                         \
-  x(6);                                         \
-  x(7);                                         \
-  x(8);                                         \
-  x(9);                                         \
-  x(10);                                        \
-  x(11);                                        \
-  x(12);                                        \
-  x(13);                                        \
-  x(14);                                        \
-  x(15);                                        \
-  x(16);                                        \
-  x(17);                                        \
-  x(18);                                        \
-  x(19);                                        \
-  x(20);                                        \
-  x(21);                                        \
-  x(22);                                        \
-  x(23);                                        \
-  x(24)
+#define UNROLL_25(x)\
+    x(0);           \
+    x(1);           \
+    x(2);           \
+    x(3);           \
+    x(4);           \
+    x(5);           \
+    x(6);           \
+    x(7);           \
+    x(8);           \
+    x(9);           \
+    x(10);          \
+    x(11);          \
+    x(12);          \
+    x(13);          \
+    x(14);          \
+    x(15);          \
+    x(16);          \
+    x(17);          \
+    x(18);          \
+    x(19);          \
+    x(20);          \
+    x(21);          \
+    x(22);          \
+    x(23);          \
+    x(24)
 
 /*
  * The z bits are stored in a single 64 bit word and all operations run

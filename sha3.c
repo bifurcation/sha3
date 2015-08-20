@@ -7,6 +7,8 @@
 #include <memory.h>
 #include <stdio.h>
 #include "sha3.h"
+
+/*** BEGIN NSPR polyfill ***/
 typedef uint64_t PRUint64;
 typedef uint32_t PRUint32;
 typedef enum { SECSuccess=0, SECFailure=-1 } SECStatus;
@@ -16,12 +18,10 @@ typedef enum { SECSuccess=0, SECFailure=-1 } SECStatus;
 #define PORT_Memcpy(x,y,z) memcpy(x,y,z)
 #define PORT_Free(x) free(x)
 #define PORT_Strlen(x) strlen(x)
-#define SHA_MIN(x,y) (((x)>(y))?(y):(x))
+/*** END NSPR polyfill ***/
 
 #define X_SIZE 5
 #define Y_SIZE 5
-
-
 
 typedef struct SHA3ContextStr SHA3Context;
 
@@ -76,6 +76,8 @@ static PRUint64 swap8b(PRUint64 x)  {
 #define DUMP_LANES(label,A) dump_lanes(label,A)
 #define DUMP_BYTES(label,A) dump_bytes(label,A)
 #define DUMP_BUF(label,b,size) dump_buf(label,b,size)
+
+#define SHA_MIN(x,y) (((x)>(y))?(y):(x))
 
 static void
 dump_lanes(char *label, const PRUint64 *a)
